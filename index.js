@@ -116,42 +116,51 @@ mongoose.connect(MONGODB_URI)
 
 const typeDefs = `
     type Book {
-      title: String!
-      published: Int!
-      author: Author!
-      genres: [String!]!
-      id: ID!
+        title: String!
+        published: Int!
+        author: Author!
+        genres: [String!]!
+        id: ID! 
     }
+
     type Author {
       name: String!
       id: ID! 
       bookCount: Int!
       born: Int
     }
+
     type Query {
         bookCount: Int!
         authorCount: Int!
         allBooks(author: String, genre: String): [Book!]!
         allAuthors: [Author!]!
     }
+
     type Mutation {
       addBook(
         title: String!
-        author: String!
+        author: String
         published: Int!
-        genres: [String!]!
-      ): Book!
-      editAuthor(
-        name: String!
-        setBornTo: Int!
-      ): Author
+        genres: [String!]
+      ): Book
+
+    editAuthor(
+      name: String!
+      setBornTo: Int!
+    ): Author
+
+    createAuthor(
+      name: String!
+      born: Int
+    ): Author
     }
 `
 
 const resolvers = {
     Query: {
         bookCount: async () => Book.collection.countDocuments(),
-        authorCount: () => Author.collection.countDocuments(),
+        authorCount: async () => Author.collection.countDocuments(),
         allBooks: async (root, args) => {
           return Book.find({})
         },
@@ -161,8 +170,26 @@ const resolvers = {
     },
     Mutation: {
       addBook: async (root, args) => {
-        const book = new Book({ ...args })
-        return book.save()
+        let author = await Author.findOne({ name: args.author });
+    
+        if (!author) {
+          const authorArgs = { name: args.author, born: args.born };
+          author = new Author(authorArgs);
+          await author.save();
+        }
+
+        const book = new Book({
+          title: args.title,
+          published: args.published,
+          genres: args.genres,
+          author: author._id,
+        })
+    
+        await book.save()
+    
+        await book.populate('author')
+  
+        return book
       },
       editAuthor: (root, args) => {
         const author = authors.find(a => a.name === args.name)
