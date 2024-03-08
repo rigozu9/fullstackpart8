@@ -28,20 +28,6 @@ let authors = [
   },
 ]
 
-/*
- * Suomi:
- * Saattaisi olla järkevämpää assosioida kirja ja sen tekijä tallettamalla kirjan yhteyteen tekijän nimen sijaan tekijän id
- * Yksinkertaisuuden vuoksi tallennamme kuitenkin kirjan yhteyteen tekijän nimen
- *
- * English:
- * It might make more sense to associate a book with its author by storing the author's id in the context of the book instead of the author's name
- * However, for simplicity, we will store the author's name in connection with the book
- *
- * Spanish:
- * Podría tener más sentido asociar un libro con su autor almacenando la id del autor en el contexto del libro en lugar del nombre del autor
- * Sin embargo, por simplicidad, almacenaremos el nombre del autor en conección con el libro
-*/
-
 let books = [
   {
     title: 'Clean Code',
@@ -162,20 +148,39 @@ const resolvers = {
         bookCount: async () => Book.collection.countDocuments(),
         authorCount: async () => Author.collection.countDocuments(),
         allBooks: async (root, args) => {
-          return Book.find({})
-        },
+          if (args.genre && args.author) {
+            return Book.find({
+              genres: { $in: [args.genre] },
+            }).populate('author', { name: args.author })
+          } 
+          else if (args.genre) {
+            return Book.find({
+              genres: { $in: [args.genre] }, 
+            }).populate('author')
+          }
+          else if (args.author) {
+            const author = await Author.findOne({ name: args.author })
+            if (!author) {
+              return []
+            }
+            return Book.find({ author: author._id }).populate('author')
+          }
+          else {
+            return Book.find({}).populate('author')
+          }
+        },              
         allAuthors: async () => {
           return Author.find({})
         }
     },
     Mutation: {
       addBook: async (root, args) => {
-        let author = await Author.findOne({ name: args.author });
+        let author = await Author.findOne({ name: args.author })
     
         if (!author) {
-          const authorArgs = { name: args.author, born: args.born };
-          author = new Author(authorArgs);
-          await author.save();
+          const authorArgs = { name: args.author, born: args.born }
+          author = new Author(authorArgs)
+          await author.save()
         }
 
         const book = new Book({
@@ -191,16 +196,14 @@ const resolvers = {
   
         return book
       },
-      editAuthor: (root, args) => {
-        const author = authors.find(a => a.name === args.name)
-        if (!author) {
-          return null
-        }
-    
-        const updatedAuthor = { ...author, born: args.setBornTo }
-        authors = authors.map(a => a.name === args.name ? updatedAuthor : a)
+      editAuthor: async (root, args) => {
+        const updatedAuthor = await Author.findOneAndUpdate(
+          { name: args.name },
+          { born: args.setBornTo },
+          { new: true }
+        )
         return updatedAuthor
-      } 
+      }      
     }
 }
 
