@@ -5,7 +5,6 @@ export const ALL_AUTHORS = gql`
     allAuthors  {
       name
       born
-      bookCount
       id
     }
   }
@@ -15,12 +14,15 @@ export const ALL_BOOKS = gql`
   query {
     allBooks  {
       title
-      author
       published
       id
+      author {
+        name
+      }
     }
   }
 `
+
 
 export const CREATE_BOOK = gql`
   mutation addBook(
