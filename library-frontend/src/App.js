@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useApolloClient } from '@apollo/client'
+import { useApolloClient, useSubscription } from '@apollo/client'
+import { BOOK_ADDED } from './queries.js'
 
 import Authors from './components/Authors'
 import Books from './components/Books'
@@ -18,6 +19,17 @@ const App = () => {
     client.clearStore()
     setPage('authors')
   }
+
+  useSubscription(BOOK_ADDED, {
+    onData: ({ data }) => {
+      if (data?.data?.bookAdded) {
+        const title = data.data.bookAdded.title
+        const authorName = data.data.bookAdded.author.name
+        alert(`A new book "${title}" by ${authorName} added`)
+      }
+    }
+  })
+  
 
   if (!token) {
       return (
