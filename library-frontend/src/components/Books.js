@@ -1,31 +1,34 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery } from '@apollo/client'
-import { ALL_BOOKS } from '../queries'
+import { ALL_BOOKS, ALL_GENRES } from '../queries'
 
 const Books = (props) => {
-  const [selectedGenre, setSelectedGenre] = useState('all genres')
-  const [genres, setGenres] = useState([])
-  const { loading, error, data } = useQuery(ALL_BOOKS)
+  const [selectedGenre, setSelectedGenre] = useState('')
+  const [genres, setGenres] = useState('')
+  const { loading: loadingBooks, error: errorBooks, data: dataBooks } = useQuery(ALL_BOOKS, {
+    variables: { genre: selectedGenre },
+  })
+  const { loading: loadingGenres, error: errorGenres, data: dataGenres } = useQuery(ALL_GENRES)
 
   useEffect(() => {
-    if (data) {
-      const gatheredGenres = new Set(data.allBooks.flatMap(book => book.genres))
-      setGenres(['all genres', ...gatheredGenres])
+    if (dataGenres) {
+      const gatheredGenres = new Set(dataGenres.allGenres)
+      setGenres([...gatheredGenres])
     }
-  }, [data])
+  }, [dataGenres])
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
-  if (!props.show || !data) return null
+  const selectGenre = (genre) => {
+    setSelectedGenre(genre === 'all genres' ? null : genre)
+  }
 
-  const filteredBooks = selectedGenre === 'all genres'
-    ? data.allBooks
-    : data.allBooks.filter(book => book.genres.includes(selectedGenre))
+  if (loadingBooks || loadingGenres) return <p>Loading...</p>
+  if (errorBooks || errorGenres) return <p>Error: {errorBooks?.message || errorGenres?.message}</p>
+  if (!props.show) return null
 
-    return (
-      <div>
-        <h2>books</h2>      
-        <p>in genre <strong>{selectedGenre}</strong> </p>      
+  return (
+    <div>
+      <h2>books</h2>
+      <p>in genre <strong>{selectedGenre || 'all genres'}</strong></p>
       <table>
         <tbody>
           <tr>
@@ -33,8 +36,8 @@ const Books = (props) => {
             <th>author</th>
             <th>published</th>
           </tr>
-          {filteredBooks.map(a => (
-            <tr key={a.title}>
+          {dataBooks.allBooks.map(a => (
+            <tr key={a.id}>
               <td>{a.title}</td>
               <td>{a.author.name}</td>
               <td>{a.published}</td>
@@ -42,16 +45,16 @@ const Books = (props) => {
           ))}
         </tbody>
       </table>
-        <div>
-          {genres.map(genre => (
-            <button
-              key={genre}
-              onClick={() => setSelectedGenre(genre)}
-            >
-              {genre}
-            </button>
-          ))}
-        </div>
+      <div>
+        {genres.map(genre => (
+          <button key={genre} onClick={() => selectGenre(genre)}>
+            {genre}
+          </button>
+        ))}
+        <button onClick={() => selectGenre('all genres')}>
+          all genres
+        </button>
+      </div>
     </div>
   )
 }
